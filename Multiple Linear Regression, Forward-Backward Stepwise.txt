@@ -1,5 +1,6 @@
 ## Multiple Linear Regression
-In this example, we demonstrate multiple linear regression model-building techniques. The dataset is the Ames (Iowa) home sale price data. To make things more manageable, this large dataset is reduced to eleven variables (ten predictors and one response).
+This dataset is the Ames (Iowa) home sale price data.
+To make things more manageable, this large dataset is reduced to eleven variables (ten predictors and one response: SalePrice).
 
 Begin by loading necessary packages. As usual, you will need to install any of these packages that have not been previously installed.    
 ```{r}
@@ -15,7 +16,10 @@ Read in the data.
 ames = read_csv("AmesData.csv")
 ```
 
-I've gone ahead and selected some important variables. Store these variables in a data frame named "ames2". You may discard the "ames" data frame if you wish. However, since we are dealing with relatively small datasets, it will be OK to keep both datasets in our RStudio environment.  
+I've gone ahead and selected some important variables. Store these variables in a data frame named "ames2".
+You may discard the "ames" data frame if you wish. However, since we are dealing with relatively small datasets,
+it will be OK to keep both datasets in our RStudio environment.  
+
 ```{r}
 ames2 = ames %>% dplyr::select("SalePrice", "OverallQual", "GrLivArea", "GarageCars", "GarageArea", "TotalBsmtSF", "1stFlrSF", "FullBath", "YearBuilt", "YearRemodAdd", "TotRmsAbvGrd")
 ```
