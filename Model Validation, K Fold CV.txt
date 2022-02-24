@@ -1,0 +1,35 @@
+# Model Validation: K-Fold CV
+# Linear Regression
+
+Import Libraries  
+```{r}
+library(tidyverse)
+library(caret)
+```
+
+Read-in dataset  
+```{r}
+df = read_csv("filename.csv")
+str(df) #check full df structure
+```
+
+Get rid of missing data rows 
+```{r}
+df = df %>% 
+drop_na() #delete any row with an NA value
+str(df) #check structure after the drop
+```
+
+We will do pure k-fold cross-validation with no training and testing set.
+Can easily combine with train/test split.
+If you do this, do k-fold on training set.
+
+Model with best single variable (by correlation).  
+```{r}
+ctrl = trainControl(method = "cv",number = 10) #set up caret 10 fold cross validation
+
+set.seed(123) #set random number seed for cross validation
+modCV = train(response ~ predictor, df, method = "lm", trControl = ctrl, metric="Rsquared")
+summary(modCV)
+```
+If we had done a train/test split, we would then evaluate the quality of the model on the testing set.
