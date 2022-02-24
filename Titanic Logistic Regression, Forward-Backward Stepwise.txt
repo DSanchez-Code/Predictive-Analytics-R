@@ -1,0 +1,176 @@
+## Logistic Regression with Titanic Dataset
+## Visually Examine
+## Build Forward/Backward Stepwise Logistic Regression Models
+
+Import Libraries  
+```{r}
+library(titanic)
+library(tidyverse)
+library(MASS) #access to forward and backward selection algorithms
+library(leaps) #best subset selection
+```
+
+Load Titanic Data from the titanic package. 
+```{r}
+titanic = titanic::titanic_train
+```
+
+Structure and summary
+```{R}
+str(titanic)
+summary(titanic)
+```
+Note the missing values in the potentially important Age variable.  We will talk about dealing with missing data later.  
+
+Factor conversion. Several of our variables are categorical and should be converted to factors.  
+```{r}
+titanic = titanic %>% mutate(Survived = as.factor(Survived)) %>% 
+  mutate(Survived = fct_recode(Survived, "No" = "0", "Yes" = "1" )) %>%
+  mutate(Pclass = as.factor(Pclass)) %>% mutate(Sex = as.factor(Sex)) %>%
+  mutate(Embarked = as.factor(Embarked))
+str(titanic)
+```
+Re-code Embarked level that is blank as Unknown.  Note that C = Cherbourg, France, Q = Queenstown, Ireland, and S = Southampton, England.  You could also recode these, if desired.  
+
+We will not use the PassengerId, Name, Ticket, Fare, and Cabin variables. However, with some work these variables might contain useful information. For example, the Name variable contains the passenger's title. Title may give some information on 
+```{r}
+titanic = titanic %>% mutate(Embarked = fct_recode(Embarked,Unknown = ""))
+str(titanic)
+```
+
+Visuals  
+Passenger Class  
+```{r}
+ggplot(titanic, aes(x=Pclass, fill = Survived))
++ geom_bar()
++ theme_bw()
+```
+
+Alternative (look at tabular data)
+```{r}
+t1 = table(titanic$Survived, titanic$Pclass) #create a table object
+prop.table(t1, margin = 2 ) #crosstab with proportions
+```
+Makes sense that passenger class predicts survival. Wealthier passengers had easier access to lifeboats.
+
+Gender  
+```{r}
+ggplot(titanic, aes(x=Sex, fill = Survived)) + geom_bar() + theme_bw()
+```
+This data supports the notion that women survived at a higher rate than men.  
+
+Age 
+```{r}
+ggplot(titanic, aes(x=Survived, y= Age)) + geom_boxplot() + theme_bw()
+```
+Age, on its own, does not seem to predict survival. There is little difference in the age distribution of survivors and those that did not survive.  
+
+Siblings/Spouses 
+```{r}
+ggplot(titanic, aes(x=SibSp, fill = Survived)) + geom_bar() + theme_bw()
+```
+
+Hard to tell much from the graph.  
+Alternative (look at tabular data)  
+```{r}
+t2 = table(titanic$Survived, titanic$SibSp) #create a table object
+prop.table(t2, margin = 2 ) #crosstab with proportions
+```
+Larger numbers of siblings + spouses seems to suggest less chance of survival, but the sample size for the larger numbers is pretty low.  
+
+Parents/Children
+```{r}
+ggplot(titanic, aes(x=Parch, fill = Survived)) + geom_bar() + theme_bw()
+```
+Similar to above, hard to tell much from the graph.  
+
+Alternative (look at tabular data)
+```{r}
+t3 = table(titanic$Survived, titanic$Parch) #create a table object
+prop.table(t3, margin = 2 ) #crosstab with proportions
+```
+Some decrease in survival rate as Parch increases, but stil dealing with small samples.
+
+Embarked location
+```{r}
+ggplot(titanic, aes(x=Embarked, fill = Survived)) + geom_bar() + theme_bw()
+```
+It seems unlikely the embarcation location actually predicts survival. This variable may be a surrogate for other variables such as Pclass.
+
+### Moving on Logistic Regression Models
+
+Let's build a model with Pclass. Note the format and the use of the glm function. 
+```{r}
+mod1 = glm(Survived ~ Pclass , titanic, family = "binomial")
+summary(mod1)
+```
+Pclass has three levels (1, 2, and 3) representing each of the three classes of passenger on the ship. Note the negative coefficients for Pclass2 and Pclass3. This suggests that probability of survival drops for those classes compared to first class (as we expect). The dropoff is more severe (larger coefficient) for Pclass3.  
+
+Note the AIC of this model (a measure of model quality) is 1089.1. We can use this value to compare this model to others. Smaller AIC is better.  
+
+Add gender.  
+```{r}
+mod2 = glm(Survived ~ Pclass + Sex, titanic, family = "binomial")
+summary(mod2)
+```
+R used female as the base level for the Sex factor. Sex is a significant variable. The male level has a large, negative coefficient. This implies males are much less likely to survive than females (as expected). The AIC of this model is less than for the first model, so this model is better.  
+
+Add Age (note how R handles the missing rows).  
+```{r}
+mod3 = glm(Survived ~ Pclass + Sex + Age , titanic, family = "binomial")
+summary(mod3)
+```
+Note the "177 observations deleted due to missingness" note near the bottom of the summary. R's behavior was to delete the rows with missing Age values. 
+
+In this model, Age is significant and has a negative coefficient (older = less likely to survive). AIC of this model is better.  
+
+We can use stepwise methods as we did for linear regression. Start by building empty and "full" models. Note that our "full" model will NOT include all variables in the dataset as we will exclude name, etc.
+
+**NOTE:** Stepwise models do not always "play well" with missing data. Let's get rid of the rows with the missing Age values.  
+```{r}
+titanic = titanic %>% drop_na(Age)
+```
+
+```{r}
+allmod = glm(Survived ~ Pclass + Sex + Age + SibSp + Parch + Embarked, titanic, family = "binomial") 
+summary(allmod)  
+  
+emptymod = glm(Survived ~1, titanic, family = "binomial") #use ~1 to build an empty model  
+summary(emptymod)
+```
+
+Backward stepwise (reusing code from linear regression) 
+```{r}
+#backward
+backmod = stepAIC(allmod, direction = "backward", trace = TRUE) 
+summary(backmod)
+```
+
+Forward stepwise (again reusing code)
+```{r}
+#forward
+forwardmod = stepAIC(emptymod, direction = "forward", scope=list(upper=allmod,lower=emptymod),
+                      trace = TRUE) 
+summary(forwardmod) 
+```
+Both models are the same.  
+
+Here are predictions on sample passenger.  We are updating passenger traits
+in the "newdata" data frame that includes the predictive variables.
+
+```{r}
+newdata = data.frame(Sex = "male", Pclass = "3", Age = 39, SibSp = 3)
+predict(forwardmod, newdata, type="response")
+```
+
+Another passenger.  
+```{r}
+newdata = data.frame(Sex = "female", Pclass = "1", Age = 6, SibSp = 1)
+predict(forwardmod, newdata, type="response")
+```
+
+One more.    
+```{r}
+newdata = data.frame(Sex = "male", Pclass = "2", Age = 26, SibSp = 1)
+predict(forwardmod, newdata, type="response")
+```
